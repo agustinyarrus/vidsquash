@@ -28,3 +28,30 @@ func TestHeaderVersionALaDerecha(t *testing.T) {
 		t.Errorf("angosta: %q", h)
 	}
 }
+
+// Un error que no entra en la ventana se parte en palabras, alineado después
+// de la marca: antes iba en un renglón y la consola lo cortaba donde caía (el
+// ")" de "--for discrod" quedaba solo abajo, a 100 columnas).
+func TestMarkedSeParteEnPalabras(t *testing.T) {
+	term := &Term{}
+	term.SetWidth(100)
+	msg := `--for: "discrod" no es una opción; ¿quisiste decir "discord"? (discord, whatsapp, outlook, gmail)`
+	l := term.Marked("✗ ", Rose, msg)
+	if len(l) != 2 || !strings.HasPrefix(l[0], Margin+"✗ --for:") || !strings.HasPrefix(l[1], Margin+"  ") {
+		t.Fatalf("renglones = %q", l)
+	}
+	var palabras []string
+	for _, x := range l {
+		if w := Width(x); w > 100-len(Margin) {
+			t.Errorf("renglón de %d columnas: %q", w, x)
+		}
+		palabras = append(palabras, strings.Fields(strings.TrimPrefix(strings.TrimSpace(x), "✗ "))...)
+	}
+	if strings.Join(palabras, " ") != msg {
+		t.Errorf("el mensaje cambió al partirse: %q", palabras)
+	}
+	// Uno corto queda como siempre: margen, marca y texto.
+	if l := term.Marked("✗ ", Rose, "falta el tamaño"); len(l) != 1 || l[0] != Margin+"✗ falta el tamaño" {
+		t.Errorf("corto: %q", l)
+	}
+}
