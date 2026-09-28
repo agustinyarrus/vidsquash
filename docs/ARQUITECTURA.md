@@ -73,7 +73,7 @@
 ### fsx y win/desk
 
 - `fsx`: nombres para mostrar y comprobaciones de archivos (`SameFile`, `Exists`).
-- `win/desk`: el modo y el tamaño de la consola por `syscall`, con las DLL que no son KnownDLL cargadas por ruta absoluta de System32.
+- `win/desk`: el modo y el tamaño de la consola por `syscall`. Solo carga `kernel32.dll`, una KnownDLL que Windows toma siempre de System32 (con otra DLL nombrada sin ruta, `LoadLibrary` buscaría primero junto al exe).
 
 ### version
 

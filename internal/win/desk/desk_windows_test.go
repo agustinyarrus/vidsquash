@@ -21,7 +21,4 @@ func TestArchivoNoEsConsola(t *testing.T) {
 	if _, _, err := ConsoleSize(f.Fd()); err == nil {
 		t.Fatal("un archivo no tiene tamaño de consola")
 	}
-	if systemDirectory() == "" {
-		t.Fatal("sin carpeta del sistema")
-	}
 }
