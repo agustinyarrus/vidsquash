@@ -2,7 +2,6 @@
 
 <p>
   <img src="https://img.shields.io/badge/versi%C3%B3n-0.1.0%20%C2%B7%20en%20construcci%C3%B3n-eedfb8" alt="Versión 0.1.0, en construcción">
-  <a href="https://github.com/agustinyarrus/vidsquash/actions/workflows/ci.yml"><img src="https://github.com/agustinyarrus/vidsquash/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white" alt="Go 1.26+">
   <img src="https://img.shields.io/badge/Windows-10%20%C2%B7%2011-0078D4" alt="Windows 10 y 11">
   <img src="https://img.shields.io/badge/usa-ffmpeg-8fd6cc" alt="Usa ffmpeg">
