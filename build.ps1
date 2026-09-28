@@ -5,7 +5,7 @@
 .DESCRIPTION
   Go puro (sin CGO), sin símbolos de depuración (-s -w) y sin rutas locales
   (-trimpath), con la versión y el commit estampados (se ven con
-  vidsquash --version).
+  vidsquash --version). Al final muestra el tamaño y el SHA256 del .exe.
 
 .EXAMPLE
   .\build.ps1           # compila a dist\vidsquash.exe
@@ -31,12 +31,14 @@ if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-$name = 'vidsquash'
 $module = 'github.com/agustinyarrus/vidsquash'
 $version = ([regex]::Match((Get-Content internal\version\version.go -Raw), 'Version\s*=\s*"([^"]+)"')).Groups[1].Value
 $commit = 'dev'
 if (Get-Command git -ErrorAction SilentlyContinue) {
-    $c = git rev-parse --short HEAD 2>$null
+    # 7 fijo, no el largo automático de git (crece con los objetos del repo):
+    # el mismo commit tiene que estampar lo mismo en cualquier clon para que
+    # el .exe sea reproducible byte a byte (ver docs\RELEASE.md).
+    $c = git rev-parse --short=7 HEAD 2>$null
     if ($LASTEXITCODE -eq 0 -and $c) {
         $commit = $c
         if (git status --porcelain 2>$null) { $commit += '-mod' } # hay cambios sin commitear
@@ -44,7 +46,7 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 }
 
 Write-Host ""
-Write-Host "  $(Paint $lav $name)$(Paint $faint '  ·  ')$(Paint $sub "compilando $version+$commit")"
+Write-Host "  $(Paint $lav 'vidsquash')$(Paint $faint '  ·  ')$(Paint $sub "compilando $version+$commit")"
 Write-Host ""
 
 if ($Test) {
@@ -65,14 +67,16 @@ $env:GOOS = 'windows'
 $env:GOARCH = 'amd64'
 $ldflags = "-s -w -X $module/internal/version.Version=$version -X $module/internal/version.Commit=$commit"
 
-$exe = Join-Path $Out "$name.exe"
+$exe = Join-Path $Out 'vidsquash.exe'
 $sw = [Diagnostics.Stopwatch]::StartNew()
 go build -trimpath -ldflags $ldflags -o $exe .
-if ($LASTEXITCODE -ne 0) { Write-Host "  $(Paint $rose '✗') no compila $name"; exit 1 }
+if ($LASTEXITCODE -ne 0) { Write-Host "  $(Paint $rose '✗') no compila vidsquash"; exit 1 }
 $size = (Get-Item $exe).Length
 $mb = ($size / 1MB).ToString('N1', $ar)
 $secs = $sw.Elapsed.TotalSeconds.ToString('N1', $ar)
-Write-Host ("  {0} {1} {2}  {3}" -f (Paint $sage '✓'), $name, (Paint $sub "$mb MB"), (Paint $faint "$secs s"))
+$sha = (Get-FileHash -Algorithm SHA256 $exe).Hash.ToLowerInvariant()
+Write-Host ("  {0} {1} {2}  {3}" -f (Paint $sage '✓'), 'vidsquash.exe', (Paint $sub "$mb MB".PadLeft(8)), (Paint $faint "$secs s"))
+Write-Host "  $(Paint $faint 'sha256') $(Paint $sub $sha)"
 Write-Host ""
-Write-Host "  $(Paint $sub "listo en $((Resolve-Path $exe).Path)")"
+Write-Host "  $(Paint $sub "listo en $((Resolve-Path $Out).Path)")"
 Write-Host ""
