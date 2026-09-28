@@ -29,7 +29,7 @@ Hay también un test de dependencias: `go list -deps` sobre `tui` no puede traer
 
 [`.github/frontera.ps1`](../.github/frontera.ps1) corre el `.exe` en una carpeta temporal con un `clip.mp4` de un byte (ninguna validación lo abre) y comprueba el mensaje y el código de cada caso de la tabla de abajo, más un flag mal escrito (`--presset`, código 2). El de "no encontré ffmpeg" solo corre si ffmpeg no está donde vidsquash lo busca (en el runner de GitHub no está); si está, se saltea y lo dice. La CI lo corre en cada push, después de `build.ps1` ([`ci.yml`](../.github/workflows/ci.yml)).
 
-La CI no corrió todavía en GitHub (el repo no se publicó): se validó con actionlint y se simuló en la PC de desarrollo, con un clon limpio, Go 1.26.0 y cachés vacías. Todos los pasos en verde, la frontera 9 de 9.
+La CI no corrió todavía en GitHub (el repo no se publicó): se validó con actionlint y se simuló en la PC de desarrollo, con un clon limpio, Go 1.26.0 y cachés vacías. Todos los pasos en verde. La frontera, 9 de 9 con un `LOCALAPPDATA` vacío (como el runner, sin ffmpeg a la vista); en la PC, que tiene el ffmpeg de winget, 8 de 8 con el caso de ffmpeg salteado y dicho.
 
 ### El exe, en una máquina sin ffmpeg (28/09/2026)
 
