@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,7 +45,8 @@ type opciones struct {
 	forzar   bool
 }
 
-// Main es el punto de entrada del subcomando.
+// Main es el punto de entrada de vidsquash: interpreta args, hace el trabajo y
+// devuelve el código de salida.
 func Main(t *tui.Term, version string, args []string) int {
 	o := opciones{codec: "h264", preset: "medium"}
 	app := cli.New("vidsquash", version, "comprime un video para que entre en un tamaño")
@@ -146,6 +148,9 @@ type config struct {
 
 func validar(o opciones, entrada string) (config, error) {
 	st, err := os.Stat(entrada)
+	if errors.Is(err, fs.ErrNotExist) {
+		return config{}, fmt.Errorf("%s no existe", fsx.Display(entrada))
+	}
 	if err != nil {
 		return config{}, fmt.Errorf("%s: %w", entrada, err)
 	}

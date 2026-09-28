@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// Q-03: el paquete que usan tui y clip2qr anda solo. Un archivo no es una
-// consola (así detecta tui que la salida va a un pipe o a un archivo).
+// Un archivo no es una consola: así detecta tui que la salida va a un pipe
+// o a un archivo.
 func TestArchivoNoEsConsola(t *testing.T) {
 	f, err := os.CreateTemp(t.TempDir(), "x-*.txt")
 	if err != nil {

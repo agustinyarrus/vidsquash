@@ -7,22 +7,24 @@ import (
 	"testing"
 )
 
-// Q-03: tui (y con él img, pdf-merge, vidsquash) y clip2qr no cargan con lo
-// de killport: las tablas de red (net/netip), el ejecutor acotado (os/exec),
-// el cliente de named pipes. Antes tui importaba internal/win entero y cada
-// una de esas herramientas pesaba ~105 KB de más.
-func TestSinLoDeKillport(t *testing.T) {
+// La capa de consola es liviana a propósito: no carga red (net, net/netip)
+// ni lanzar procesos (os/exec). vidsquash sí lanza ffmpeg, pero eso vive en
+// ffx; si un cambio en tui arrastra esos paquetes, este test lo dice.
+func TestSinPaquetesPesados(t *testing.T) {
 	if testing.Short() {
 		t.Skip("-short: sin correr go list")
 	}
-	out, err := exec.Command("go", "list", "-deps", "github.com/agustinyarrus/vidsquash/internal/tui", "github.com/agustinyarrus/vidsquash/cmd/clip2qr").Output()
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go no está en el PATH")
+	}
+	out, err := exec.Command("go", "list", "-deps", "github.com/agustinyarrus/vidsquash/internal/tui").Output()
 	if err != nil {
-		t.Skipf("go list no anduvo: %v", err)
+		t.Fatalf("go list: %v", err)
 	}
 	deps := strings.Fields(string(out))
-	for _, no := range []string{"net/netip", "os/exec", "github.com/agustinyarrus/vidsquash/internal/win", "github.com/agustinyarrus/vidsquash/internal/win/pipeio"} {
+	for _, no := range []string{"net", "net/netip", "os/exec"} {
 		if slices.Contains(deps, no) {
-			t.Errorf("tui o clip2qr dependen de %s", no)
+			t.Errorf("tui depende de %s", no)
 		}
 	}
 }

@@ -1,12 +1,10 @@
 //go:build windows
 
-// Package desk es lo poco de la API de Windows que usan TODAS las
-// herramientas: el modo y el tamaño de la consola (tui) y el portapapeles
-// (clip2qr). Vive aparte de internal/win a propósito: win creció con lo de
-// killport (tablas de red con net/netip, el cliente de named pipes, el
-// ejecutor acotado con os/exec), y una herramienta que solo pinta en la
-// consola no tiene por qué cargar con eso (medido en la revisión: ~105 KB de
-// más en clip2qr, img y pdf-merge). Todo por syscall, sin CGO.
+// Package desk es lo poco de la API de Windows que hace falta en la consola:
+// el modo y el tamaño de la consola (tui); el portapapeles queda
+// disponible aunque vidsquash no lo use. Es chico a propósito: nada de red ni de
+// lanzar procesos, así el .exe no carga con lo que no usa. Todo por
+// syscall, sin CGO.
 package desk
 
 import (
@@ -35,8 +33,9 @@ func systemDirectory() string {
 
 // call invoca un procedimiento y devuelve el resultado crudo más el errno.
 // La directiva uintptrescapes lleva al heap los búferes que se pasan como
-// uintptr (ver la explicación larga en internal/win/dll.go: sin ella, un
-// búfer chico en la pila puede moverse entre la conversión y la llamada).
+// uintptr: sin ella, un búfer chico puede quedar en la pila de la goroutine,
+// y si la pila crece entre la conversión y la llamada, Windows escribe en la
+// pila vieja y el resultado vuelve vacío.
 //
 //go:uintptrescapes
 func call(p *syscall.LazyProc, args ...uintptr) (uintptr, syscall.Errno) {

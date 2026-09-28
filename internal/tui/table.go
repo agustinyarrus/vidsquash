@@ -20,7 +20,7 @@ import (
 // columnas baja a dos espacios (en 80 columnas, siete huecos de tres son 21).
 //
 // Sin consola (la salida va a un pipe o a un archivo) la última columna va
-// entera: el que hace `killport | findstr llama` busca justo lo que el recorte
+// entera: el que filtra la salida con findstr busca justo lo que el recorte
 // se come. COLUMNS, si está, fija el ancho igual que en una consola.
 
 // Align es la alineación de una columna de tabla.

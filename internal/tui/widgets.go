@@ -11,7 +11,7 @@ import (
 func (t *Term) Header(name, tagline, version string) []string {
 	width := t.Width() - len(Margin)*2
 	left := t.Paint(Lavender, name) + t.Paint(Faint, "  ·  ") + t.Paint(Subtle, tagline)
-	right := t.Paint(Faint, "navaja "+version)
+	right := t.Paint(Faint, version)
 	gap := width - Width(left) - Width(right)
 	if gap < 2 {
 		return []string{"", Margin + left, ""}
