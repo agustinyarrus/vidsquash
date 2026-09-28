@@ -14,7 +14,7 @@
 
 1. `main.go` abre la consola (`tui.Open`), llama a `vidsquash.Main` con la versión y sale con el código que devuelve.
 2. `validar`: que el video exista y no sea una carpeta; el objetivo (`-s` o `--for`, al menos 100 KB); `--from` y `--to`; la salida (por defecto `<nombre>-<tamaño>.mp4` al lado del original), que sea `.mp4`, que no sea la entrada y que no exista sin `--force`.
-3. `ffx.Locate` busca ffmpeg y ffprobe: junto al exe, en el `PATH` y donde los deja winget.
+3. `ffx.Locate` busca ffmpeg y ffprobe: junto al exe, en el `PATH` y donde los deja winget (`WinGet\Links` o el paquete de Gyan.FFmpeg en `WinGet\Packages`).
 4. `ffx.Probe` lee duración, tamaño, la pista de video (dimensiones, fps, rotación, si es HDR) y la de audio.
 5. `squash.MakePlan` arma la receta y la herramienta la muestra: origen, objetivo (bits de video + audio) y receta (resolución, fps, códec, preset), con el porqué de cada decisión.
 6. `squash.Encode` corre las pasadas con una barra viva por fase.
@@ -22,7 +22,7 @@
 
 ## ffx
 
-- Busca ffmpeg junto al exe (instalación portable), después en el `PATH`, después en los accesos de winget.
+- Busca ffmpeg junto al exe (instalación portable), después en el `PATH`, después en los accesos de winget (`WinGet\Links`) y en el paquete de Gyan.FFmpeg (`WinGet\Packages\Gyan.FFmpeg*\*\bin`). Ese último es el caso de `winget install Gyan.FFmpeg`: agrega el bin del paquete al `PATH` del usuario, que una terminal abierta antes de instalar no ve, y deja Links vacío.
 - Corre ffmpeg y ffprobe con cancelación: el contexto de Ctrl+C mata el proceso y no deja basura.
 - Lee el progreso de `-progress pipe:1` (tiempo de salida, velocidad, cuadros) y se queda con el final de stderr para explicar un fallo.
 - No abre ventanas propias (`CREATE_NO_WINDOW` en Windows).
@@ -63,6 +63,7 @@
 - **Barra** con resolución de 1/8 de columna; en Windows Terminal el avance también se publica en el ícono y la pestaña (OSC 9;4).
 - **Tarjeta** sin bordes y **formato es-AR**: miles con punto, decimales con coma, bytes en unidades decimales, que son las que usan los servicios para sus límites.
 - Texto plano sin escapes cuando la salida no es una consola.
+- **Renglones que no entran**: los errores (`✗`) se parten en palabras al ancho de la ventana, con las líneas de más alineadas después de la marca (`Term.Marked`); a un pipe van enteros. Antes la consola los cortaba donde caían.
 
 ### cli
 

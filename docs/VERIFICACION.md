@@ -11,7 +11,7 @@ go test ./...
 .\build.ps1 -Test     # go vet + go test y después compila
 ```
 
-54 tests en `cli`, `fsx`, `textdist`, `tui`, `win/desk` y `squash`. Los 7 del planificador (`go test ./internal/squash/`) comprueban, sobre videos descritos (sin ffmpeg):
+57 tests en `cli`, `ffx`, `fsx`, `textdist`, `tui`, `win/desk` y `squash`. Los 7 del planificador (`go test ./internal/squash/`) comprueban, sobre videos descritos (sin ffmpeg):
 
 - el plan nunca promete más bytes que el objetivo: video + audio + contenedor ≤ objetivo;
 - con pocos bits por píxel, primero se bajan los fps (60 → 30) y después la resolución;
@@ -21,9 +21,15 @@ go test ./...
 - el recorte se respeta;
 - las reglas del audio: con pocos bits pasa a mono y nunca supera al original.
 
-`ffx` y la codificación (`squash/encode.go`, `squash/quality.go`) no tienen tests: dependen de ffmpeg.
+De `ffx` se prueba solo que encuentra ffmpeg en el paquete que deja `winget install Gyan.FFmpeg` (un `LOCALAPPDATA` armado en una carpeta temporal); leer el video y la codificación (`squash/encode.go`, `squash/quality.go`) no tienen tests: dependen de ffmpeg.
 
 Hay también un test de dependencias: `go list -deps` sobre `tui` no puede traer `net`, `net/netip` ni `os/exec` (vidsquash sí lanza procesos, pero eso vive en `ffx`).
+
+### La frontera del exe, en cada corrida de la CI
+
+[`.github/frontera.ps1`](../.github/frontera.ps1) corre el `.exe` en una carpeta temporal con un `clip.mp4` de un byte (ninguna validación lo abre) y comprueba el mensaje y el código de cada caso de la tabla de abajo, más un flag mal escrito (`--presset`, código 2). El de "no encontré ffmpeg" solo corre si ffmpeg no está donde vidsquash lo busca (en el runner de GitHub no está); si está, se saltea y lo dice. La CI lo corre en cada push, después de `build.ps1` ([`ci.yml`](../.github/workflows/ci.yml)).
+
+La CI no corrió todavía en GitHub (el repo no se publicó): se validó con actionlint y se simuló en la PC de desarrollo, con un clon limpio, Go 1.26.0 y cachés vacías. Todos los pasos en verde, la frontera 9 de 9.
 
 ### El exe, en una máquina sin ffmpeg (28/09/2026)
 

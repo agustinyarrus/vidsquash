@@ -39,5 +39,5 @@ Elegir resolución y fps midiendo (codificar muestras de cada candidata y quedar
 
 ## Distribución
 
-- Releases en GitHub con el `vidsquash.exe` que genera `build.ps1` y su SHA256, recién después de la prueba del punto 1.
-- Integración continua: `go vet` y `go test` en `windows-latest` con GitHub Actions; con ffmpeg en el runner, también el clip sintético.
+- Hecho: la CI ([`ci.yml`](../.github/workflows/ci.yml)) corre en cada push las pruebas y la frontera del `.exe` ([`frontera.ps1`](../.github/frontera.ps1)).
+- Falta: con la prueba del punto 1, sumar a la CI el clip sintético (ffmpeg en el runner, como la CI de img), y recién ahí la release 1.0.0, con el `vidsquash.exe`, su SHA256 y el mismo esquema de etiqueta y reproducibilidad que las otras herramientas.
