@@ -28,8 +28,11 @@ type Tools struct {
 }
 
 // Locate busca ffmpeg y ffprobe: primero junto al exe de la herramienta (para
-// una instalación portable), después en el PATH, después en los lugares donde
-// los deja winget.
+// una instalación portable), después en el PATH, después donde los deja
+// winget: sus accesos en WinGet\Links o el paquete de Gyan.FFmpeg en
+// WinGet\Packages. Ese último es el caso de `winget install Gyan.FFmpeg`: agrega
+// el bin del paquete al PATH del usuario, que una terminal abierta antes de
+// instalar no ve, y deja Links vacío.
 func Locate() (Tools, error) {
 	find := func(name string) string {
 		if exe, err := os.Executable(); err == nil {
@@ -42,9 +45,14 @@ func Locate() (Tools, error) {
 			return p
 		}
 		if la := os.Getenv("LOCALAPPDATA"); la != "" {
-			p := filepath.Join(la, "Microsoft", "WinGet", "Links", name+".exe")
+			winget := filepath.Join(la, "Microsoft", "WinGet")
+			p := filepath.Join(winget, "Links", name+".exe")
 			if _, err := os.Stat(p); err == nil {
 				return p
+			}
+			// Glob devuelve en orden: si hubiera más de una versión, la última.
+			if ps, _ := filepath.Glob(filepath.Join(winget, "Packages", "Gyan.FFmpeg*", "*", "bin", name+".exe")); len(ps) > 0 {
+				return ps[len(ps)-1]
 			}
 		}
 		return ""

@@ -9,8 +9,9 @@
   de llamar a ffmpeg. Corre en una carpeta temporal con un clip.mp4 de un
   byte (ninguna validación lo abre). El último caso, un pedido válido, tiene
   que decir "no encontré ffmpeg": solo corre si ffmpeg no está donde
-  vidsquash lo busca (junto al .exe, en el PATH, en WinGet\Links); en el
-  runner de GitHub no está. Si está, se saltea y lo dice.
+  vidsquash lo busca (junto al .exe, en el PATH, en WinGet\Links o en el
+  paquete Gyan.FFmpeg de WinGet\Packages); en el runner de GitHub no está.
+  Si está, se saltea y lo dice.
 
 .EXAMPLE
   .\build.ps1
@@ -40,6 +41,7 @@ $ffmpeg = @(@(
     (Join-Path (Split-Path $Exe) 'ffmpeg.exe')
     (Get-Command ffmpeg -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source)
     $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\ffmpeg.exe' })
+    $(if ($env:LOCALAPPDATA) { Get-ChildItem (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages\Gyan.FFmpeg*\*\bin\ffmpeg.exe') -ErrorAction SilentlyContinue | Select-Object -Last 1 -ExpandProperty FullName })
 ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) })
 $sinFfmpeg = @{ Args = @('clip.mp4', '-s', '10MB'); Codigo = 3; Dice = 'no encontré ffmpeg (instalalo con: winget install Gyan.FFmpeg)' }
 if (-not $ffmpeg) { $casos += $sinFfmpeg }
