@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -22,7 +23,8 @@ import (
 //
 // La corrección es el método de la secante sobre tamaño(bitrate), que es
 // monótona: con un solo intento se usa la proporción directa; con dos, la
-// secante entre los dos últimos puntos. Converge en uno o dos pasos.
+// secante entre los dos últimos puntos. Converge en uno o dos pasos, con las
+// salvaguardas de nextBitrate para cuando la curva se aplana.
 
 const (
 	maxCorrections   = 3
@@ -30,6 +32,11 @@ const (
 	aimFrac          = 0.985 // a dónde apunta una corrección (margen para el error del codificador)
 	lastTrySafety    = 0.97  // la última corrección apunta más abajo: tiene que entrar sí o sí
 	videoStreamIndex = "0:v:0"
+
+	// Salvaguardas de la secante (ver nextBitrate).
+	maxStepUp      = 2.0  // sin intervalo, una corrección a lo sumo duplica el bitrate…
+	maxStepDown    = 0.5  // …o lo divide por dos
+	saturationGain = 0.25 // si subir el bitrate agrandó el video menos que esta fracción de lo proporcional, el codificador no tiene en qué gastar más
 )
 
 // EncodeOptions son los parámetros de ejecución.
@@ -107,20 +114,9 @@ func Encode(ctx context.Context, tools ffx.Tools, p Plan, opt EncodeOptions, onP
 		if st.Size() <= p.Target && (best == "" || st.Size() > res.Size) {
 			best, res.Size, res.VideoKbps = out, st.Size(), vk
 		}
-		fits := st.Size() <= p.Target
-		if fits && float64(st.Size()) >= acceptLowFrac*float64(p.Target) {
-			break // entra y aprovecha el presupuesto: listo
-		}
-		if attempt == maxCorrections {
+		next, again := nextAttempt(res.Attempts, p.Target, fixed)
+		if !again {
 			break
-		}
-		aim := aimFrac
-		if attempt == maxCorrections-1 {
-			aim = lastTrySafety
-		}
-		next := nextBitrate(res.Attempts, float64(p.Target)*aim, fixed)
-		if next == vk {
-			break // no hay nada que ajustar
 		}
 		vk = next
 	}
@@ -133,28 +129,120 @@ func Encode(ctx context.Context, tools ffx.Tools, p Plan, opt EncodeOptions, onP
 	return res, nil
 }
 
+// nextAttempt decide, con lo intentado hasta ahora, si hace falta otra segunda
+// pasada y con qué bitrate. No corre nada: Encode le cuenta cada resultado, y
+// los tests la manejan con codificadores simulados.
+func nextAttempt(attempts []Attempt, target int64, fixed float64) (videoKbps int, again bool) {
+	last := attempts[len(attempts)-1]
+	if last.Size <= target && float64(last.Size) >= acceptLowFrac*float64(target) {
+		return 0, false // entra y aprovecha el presupuesto: listo
+	}
+	corrections := len(attempts) - 1
+	if corrections >= maxCorrections {
+		return 0, false
+	}
+	aim := aimFrac
+	if corrections == maxCorrections-1 {
+		aim = lastTrySafety
+	}
+	next := nextBitrate(attempts, float64(target)*aim, fixed)
+	if slices.ContainsFunc(attempts, func(a Attempt) bool { return a.VideoKbps == next }) {
+		return 0, false // no hay nada que ajustar: ese bitrate ya dio lo que da
+	}
+	return next, true
+}
+
 // nextBitrate predice el bitrate de video que lleva el tamaño total a want.
-// Con un intento: proporción directa sobre la parte de video (el audio y el
-// contenedor son fijos). Con dos o más: secante entre los dos últimos.
+//
+// Es el método de la secante con salvaguardas. tamaño(bitrate) es monótona
+// pero no lineal: cuando al codificador le sobran bits (un video corto o
+// simple con mucho presupuesto) la curva se aplana, y la secante, que divide
+// por la diferencia de tamaños, se dispara: 7,8 → 12,3 → 28.620 Mb/s, y
+// libx264 se niega a abrir. Por eso:
+//
+//   - saturación: si el último aumento casi no agrandó el archivo, subir más
+//     no sirve; devuelve el mismo bitrate y Encode se queda con lo que tiene.
+//   - intervalo: con un intento que entra y otro que se pasa, la respuesta
+//     está entre los dos (regula falsi, o bisección si el ruido del
+//     codificador dio vuelta la pendiente) y la predicción no sale de ahí.
+//   - paso máximo: sin intervalo, una corrección a lo sumo duplica o divide
+//     por dos el bitrate.
+//
+// O(n) en los intentos, que son a lo sumo maxCorrections+1.
 func nextBitrate(attempts []Attempt, want, fixed float64) int {
 	last := attempts[len(attempts)-1]
-	videoWant := want - fixed
-	videoGot := float64(last.Size) - fixed
-	var next float64
+	if saturated(attempts, want, fixed) {
+		return last.VideoKbps
+	}
+	if under, over, ok := bracket(attempts, want); ok {
+		k, ok := secant(under, over, want)
+		if !ok {
+			k = (float64(under.VideoKbps) + float64(over.VideoKbps)) / 2
+		}
+		return max(minVideoKbps, int(math.Floor(k)))
+	}
+	guess, ok := 0.0, false
 	if len(attempts) >= 2 {
-		prev := attempts[len(attempts)-2]
-		ds := float64(last.Size - prev.Size)
-		if ds != 0 {
-			next = float64(last.VideoKbps) + (want-float64(last.Size))*float64(last.VideoKbps-prev.VideoKbps)/ds
+		guess, ok = secant(attempts[len(attempts)-2], last, want)
+	}
+	if !ok {
+		guess = proportional(last, want, fixed)
+	}
+	k := float64(last.VideoKbps)
+	guess = min(max(guess, k*maxStepDown), k*maxStepUp)
+	return max(minVideoKbps, int(math.Floor(guess)))
+}
+
+// saturated dice si el codificador ya no tiene en qué gastar más bits: los
+// dos últimos intentos quedaron cortos y subir el bitrate agrandó el video
+// menos que saturationGain de lo que habría crecido en proporción.
+func saturated(attempts []Attempt, want, fixed float64) bool {
+	if len(attempts) < 2 {
+		return false
+	}
+	prev, last := attempts[len(attempts)-2], attempts[len(attempts)-1]
+	if last.VideoKbps <= prev.VideoKbps || float64(last.Size) >= want {
+		return false
+	}
+	expected := (float64(prev.Size) - fixed) * (float64(last.VideoKbps)/float64(prev.VideoKbps) - 1)
+	return expected > 0 && float64(last.Size-prev.Size) < saturationGain*expected
+}
+
+// bracket busca los intentos que encierran a want: el más grande que no lo
+// supera y el más chico que lo supera.
+func bracket(attempts []Attempt, want float64) (under, over Attempt, ok bool) {
+	var haveUnder, haveOver bool
+	for _, a := range attempts {
+		switch s := float64(a.Size); {
+		case s <= want && (!haveUnder || a.Size > under.Size):
+			under, haveUnder = a, true
+		case s > want && (!haveOver || a.Size < over.Size):
+			over, haveOver = a, true
 		}
 	}
-	if next <= 0 && videoGot > 0 {
-		next = float64(last.VideoKbps) * videoWant / videoGot
+	return under, over, haveUnder && haveOver
+}
+
+// secant pasa una recta por dos intentos y la corta en want. Vale solo con
+// pendiente positiva (más bitrate, más tamaño): el ruido del codificador puede
+// dar dos puntos al revés, y esa recta apuntaría para el otro lado.
+func secant(a, b Attempt, want float64) (float64, bool) {
+	dk, ds := float64(b.VideoKbps-a.VideoKbps), float64(b.Size-a.Size)
+	if dk == 0 || ds == 0 || (dk > 0) != (ds > 0) {
+		return 0, false
 	}
-	if next <= 0 || math.IsNaN(next) || math.IsInf(next, 0) {
-		next = float64(last.VideoKbps) * 0.9
+	return float64(b.VideoKbps) + (want-float64(b.Size))*dk/ds, true
+}
+
+// proportional escala el bitrate por lo que falta, sobre la parte de video (el
+// audio y el contenedor son fijos). Si la estimación de lo fijo ya alcanza al
+// archivo, escala sobre el total.
+func proportional(last Attempt, want, fixed float64) float64 {
+	size := float64(last.Size)
+	if got := size - fixed; got > 0 && want > fixed {
+		return float64(last.VideoKbps) * (want - fixed) / got
 	}
-	return max(minVideoKbps, int(math.Floor(next)))
+	return float64(last.VideoKbps) * want / max(size, 1)
 }
 
 // videoFilters arma la cadena: tone mapping (si es HDR), escala, fps y el

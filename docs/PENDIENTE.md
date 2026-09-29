@@ -23,7 +23,7 @@ En todos, `ffprobe` tiene que confirmar que el tamaño es menor o igual al objet
 - un video con carátula (una imagen adjunta como primera pista de video): `-map 0:v:0` podría tomar la imagen en vez del video;
 - un video sin fps declarado o con fps variable;
 - la cadena de tone mapping con un HDR real de iPhone (Dolby Vision 8.4, fps variables): con originales sintéticos ya está probada, con el ffmpeg de winget y seis versiones más ([VERIFICACION.md](VERIFICACION.md#hdr-tone-mapping-y-medición));
-- que la corrección converja en uno o dos intentos, como dice el diseño.
+- que la corrección converja en uno o dos intentos, como dice el diseño (contra codificadores simulados ya se prueba en 54 casos, y el caso saturado con ffmpeg).
 
 Con esa corrida pasada, vidsquash llega a 1.0.0.
 

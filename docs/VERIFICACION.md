@@ -11,7 +11,7 @@ go test ./...
 .\build.ps1 -Test     # go vet + go test y después compila
 ```
 
-62 tests en `cli`, `ffx`, `fsx`, `textdist`, `tui`, `win/desk` y `squash`. Los 7 del planificador (`go test ./internal/squash/`) comprueban, sobre videos descritos (sin ffmpeg):
+69 tests en `cli`, `ffx`, `fsx`, `textdist`, `tui`, `win/desk` y `squash`. Los 7 del planificador (`go test ./internal/squash/`) comprueban, sobre videos descritos (sin ffmpeg):
 
 - el plan nunca promete más bytes que el objetivo: video + audio + contenedor ≤ objetivo;
 - con pocos bits por píxel, primero se bajan los fps (60 → 30) y después la resolución;
@@ -24,6 +24,12 @@ go test ./...
 De `ffx` se prueba que encuentra ffmpeg en el paquete que deja `winget install Gyan.FFmpeg` (un `LOCALAPPDATA` armado en una carpeta temporal); leer el video, codificar y medir se prueban con los tests de HDR de abajo, que necesitan ffmpeg.
 
 Hay también un test de dependencias: `go list -deps` sobre `tui` no puede traer `net`, `net/netip` ni `os/exec` (vidsquash sí lanza procesos, pero eso vive en `ffx`).
+
+### Corrección del tamaño
+
+Siete tests cuidan la segunda pasada corregida: la proporción con un intento, el tope de ×2 y ×½ por corrección, la regula falsi entre un intento que entra y otro que se pasa (bisección si el ruido da vuelta la pendiente), que no se repite un bitrate ya probado, y el caso real que rompía `Encode`: un clip de 2 s con 2 MB de objetivo, donde x264 ya no tenía en qué gastar bits, el tamaño no se movía y la secante pedía 28.620 Mb/s y después 117 millones, hasta que libx264 no abría. Ahora se detiene y entrega lo que entra (con ffmpeg: 2 segundas pasadas, 321 KB).
+
+El bucle completo se prueba contra codificadores simulados (exacto, que se pasa un 8 %, que se queda un 25 % corto, con ruido de ±4 %, que se satura cerca del 60 % y con techo duro al 40 %) en 9 combinaciones de objetivo y duración cada uno: 54 casos. En todos, ninguna corrección más que duplica el mayor bitrate probado y nunca hay más de 4 segundas pasadas; si el objetivo es alcanzable termina entre el 90 y el 100 %, y si el codificador se satura antes entrega algo que entra con a lo sumo dos correcciones.
 
 ### HDR: tone mapping y medición
 
