@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/agustinyarrus/vidsquash/internal/ffx"
@@ -22,6 +21,9 @@ const (
 	sampleWindow   = 2 * time.Second
 	shortVideo     = 8 * time.Second // por debajo, se mide el video entero
 	vmafReferenceH = 1080            // el modelo estándar de VMAF está calibrado para 1080p
+
+	metricVMAF = "VMAF"
+	metricSSIM = "SSIM"
 )
 
 var (
@@ -39,7 +41,7 @@ type Quality struct {
 // Label traduce el número a palabras, con los umbrales usuales de VMAF.
 func (q Quality) Label() string {
 	s := q.Score
-	if q.Metric == "SSIM" {
+	if q.Metric == metricSSIM {
 		s = (q.Score - 0.80) / 0.20 * 100 // escala aproximada para describir
 	}
 	switch {
@@ -71,8 +73,15 @@ func sampleStarts(dur time.Duration) []time.Duration {
 	return out
 }
 
-// Measure compara la salida con el original en las ventanas de muestra.
+// Measure compara la salida con el original en las ventanas de muestra: con
+// VMAF, o con SSIM si este ffmpeg no trae libvmaf.
 func Measure(ctx context.Context, tools ffx.Tools, p Plan, input string, from time.Duration, output string, v *ffx.VideoStream) (Quality, error) {
+	return measure(ctx, tools, p, input, from, output, v, metricVMAF)
+}
+
+// measure es Measure empezando por la métrica pedida (los tests piden SSIM, la
+// que da en cualquier compilación de ffmpeg).
+func measure(ctx context.Context, tools ffx.Tools, p Plan, input string, from time.Duration, output string, v *ffx.VideoStream, metric string) (Quality, error) {
 	refW, refH := v.Width, v.Height
 	if short := min(refW, refH); short > vmafReferenceH {
 		refW, refH = scaledSize(v.Width, v.Height, vmafReferenceH)
@@ -82,7 +91,7 @@ func Measure(ctx context.Context, tools ffx.Tools, p Plan, input string, from ti
 		win = p.Duration
 	}
 	threads := strconv.Itoa(max(1, runtime.NumCPU()))
-	q := Quality{Metric: "VMAF"}
+	q := Quality{Metric: metric}
 	var total float64
 	for _, t := range sampleStarts(p.Duration) {
 		score, metric, err := measureWindow(ctx, tools, p, input, from+t, output, t, win, refW, refH, v.FPS, threads, q.Metric)
@@ -98,25 +107,19 @@ func Measure(ctx context.Context, tools ffx.Tools, p Plan, input string, from ti
 }
 
 func measureWindow(ctx context.Context, tools ffx.Tools, p Plan, input string, refAt time.Duration, output string, outAt, win time.Duration, w, h int, fps float64, threads, metric string) (float64, string, error) {
-	fpsStr := strconv.FormatFloat(fps, 'f', -1, 64)
-	norm := fmt.Sprintf("scale=%d:%d:flags=bicubic,fps=%s,setpts=PTS-STARTPTS", w, h, fpsStr)
-	ref := norm
-	if p.Tonemap {
-		ref = strings.Join(tonemapChain, ",") + "," + norm // comparar SDR contra SDR
-	}
 	build := func(filter string) []string {
 		return []string{
 			"-ss", secs(outAt), "-t", secs(win), "-i", output,
 			"-ss", secs(refAt), "-t", secs(win), "-i", input,
-			"-lavfi", fmt.Sprintf("[0:v]%s,format=yuv420p[d];[1:v]%s,format=yuv420p[r];[d][r]%s", norm, ref, filter),
+			"-lavfi", compareGraph(p, w, h, fps, filter),
 			"-f", "null", "-",
 		}
 	}
-	if metric == "VMAF" {
+	if metric == metricVMAF {
 		out, err := tools.Output(ctx, build("libvmaf=n_subsample=2:n_threads="+threads))
 		if m := vmafScore.FindStringSubmatch(out); err == nil && m != nil {
 			s, _ := strconv.ParseFloat(m[1], 64)
-			return s, "VMAF", nil
+			return s, metricVMAF, nil
 		}
 		if ctx.Err() != nil {
 			return 0, "", ctx.Err()
@@ -132,5 +135,30 @@ func measureWindow(ctx context.Context, tools ffx.Tools, p Plan, input string, r
 		return 0, "", fmt.Errorf("ffmpeg no devolvió el puntaje de calidad")
 	}
 	s, _ := strconv.ParseFloat(m[1], 64)
-	return s, "SSIM", nil
+	return s, metricSSIM, nil
+}
+
+// compareGraph arma el grafo de -lavfi que compara la salida ([0:v]) con el
+// original ([1:v]) usando el filtro de la métrica (libvmaf o ssim).
+func compareGraph(p Plan, w, h int, fps float64, metric string) string {
+	return fmt.Sprintf("[0:v]%s[d];[1:v]%s[r];[d][r]%s", normalizeFilters(w, h, fps), referenceFilters(p, w, h, fps), metric)
+}
+
+// referenceFilters prepara el original para compararlo. Si era HDR pasa antes
+// por el mismo tone mapping que la codificación, con el formato ya fijado por
+// zimg (ver tonemapFilters): se compara SDR contra los mismos cuadros SDR que
+// recibió el codificador, no contra otra conversión del mismo original.
+func referenceFilters(p Plan, w, h int, fps float64) string {
+	if p.Tonemap {
+		return tonemapFilters + "," + normalizeFilters(w, h, fps)
+	}
+	return normalizeFilters(w, h, fps)
+}
+
+// normalizeFilters lleva un video al tamaño, los fps y el formato de píxel de
+// la medición, con los tiempos desde cero para que los cuadros de los dos
+// lados se correspondan uno a uno.
+func normalizeFilters(w, h int, fps float64) string {
+	return fmt.Sprintf("scale=%d:%d:flags=bicubic,fps=%s,setpts=PTS-STARTPTS,format=%s",
+		w, h, strconv.FormatFloat(fps, 'f', -1, 64), sdrPixFmt)
 }

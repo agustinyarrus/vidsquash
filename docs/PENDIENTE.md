@@ -22,7 +22,7 @@ En todos, `ffprobe` tiene que confirmar que el tamaño es menor o igual al objet
 - que la rotación se aplique una sola vez (ffmpeg rota solo al decodificar; si además se copian los metadatos de rotación, el video saldría girado dos veces);
 - un video con carátula (una imagen adjunta como primera pista de video): `-map 0:v:0` podría tomar la imagen en vez del video;
 - un video sin fps declarado o con fps variable;
-- la cadena de tone mapping con el ffmpeg de winget (necesita `zscale`, de zimg);
+- la cadena de tone mapping con un HDR real de iPhone (Dolby Vision 8.4, fps variables): con originales sintéticos ya está probada, con el ffmpeg de winget y seis versiones más ([VERIFICACION.md](VERIFICACION.md#hdr-tone-mapping-y-medición));
 - que la corrección converja en uno o dos intentos, como dice el diseño.
 
 Con esa corrida pasada, vidsquash llega a 1.0.0.

@@ -45,14 +45,14 @@
 - **Corrección**: si el archivo se pasa del objetivo o queda por debajo del 90 %, se repite solo la segunda pasada, porque las estadísticas de la primera sirven para cualquier bitrate. El próximo bitrate sale del método de la secante sobre tamaño(bitrate), que es monótona: con un intento, proporción directa sobre la parte de video; con dos, la secante entre los dos últimos. Apunta al 98,5 % del objetivo, y la última corrección al 97 %, para que entre sí o sí. Como mucho tres correcciones.
 - Se queda con el intento **más grande que entra** en el objetivo.
 - **Filtros**: tone mapping si es HDR, `scale` con lanczos si cambia la resolución, `fps` si cambian los cuadros, y siempre `format=yuv420p`, el que reproduce cualquier cosa.
-- **HDR → SDR**: PQ o HLG a BT.709 con la curva Hable, pasando por luz lineal en punto flotante (`zscale`, de zimg).
+- **HDR → SDR**: PQ o HLG a BT.709 con la curva Hable, pasando por luz lineal en punto flotante (`zscale`, de zimg). La cadena termina en `format=yuv420p`, que obliga a zimg a hacer la conversión a YUV: sin él, un `scale` a continuación recibía el RGB flotante y la matriz la elegía swscale (BT.601 hasta ffmpeg 6.1, en un archivo marcado BT.709).
 - **Contenedor**: `-movflags +faststart` (el índice va al principio y el video arranca antes de bajarse entero, lo que hace falta en un chat) y los metadatos del original. En H.265 va la etiqueta `hvc1`: sin ella, iPhone y Mac no lo reproducen.
 - `--from` va antes de `-i`: al transcodificar, la búsqueda es rápida y exacta.
 
 ## squash: la calidad
 
 - **VMAF** (la métrica perceptual de Netflix, 0–100) sobre tres ventanas de 2 s, al 20, 50 y 80 % del video; un video de 8 s o menos se mide entero. Medir el archivo completo costaría otra pasada.
-- Referencia y salida se llevan a la misma resolución (como mucho 1080p, para la que está calibrado el modelo) y a los mismos fps; si hubo tone mapping, la referencia también pasa por él, para comparar SDR contra SDR.
+- Referencia y salida se llevan a la misma resolución (como mucho 1080p, para la que está calibrado el modelo) y a los mismos fps; si hubo tone mapping, la referencia pasa por la misma cadena que la codificación, para comparar SDR contra los mismos cuadros SDR que recibió el codificador.
 - Si el ffmpeg instalado no trae libvmaf, se usa SSIM. La tarjeta traduce el número a palabras con los umbrales usuales ("indistinguible del original" desde 93, "muy buena" desde 85…).
 
 ## El núcleo de consola

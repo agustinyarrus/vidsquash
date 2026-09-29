@@ -162,7 +162,7 @@ func nextBitrate(attempts []Attempt, want, fixed float64) int {
 func videoFilters(p Plan, v *ffx.VideoStream) string {
 	var f []string
 	if p.Tonemap {
-		f = append(f, tonemapChain...)
+		f = append(f, tonemapFilters)
 	}
 	if v == nil || p.Width != v.Width || p.Height != v.Height {
 		f = append(f, fmt.Sprintf("scale=%d:%d:flags=lanczos", p.Width, p.Height))
@@ -170,15 +170,24 @@ func videoFilters(p Plan, v *ffx.VideoStream) string {
 	if v == nil || math.Abs(p.FPS-v.FPS) > 0.01 {
 		f = append(f, "fps="+strconv.FormatFloat(p.FPS, 'f', -1, 64))
 	}
-	return strings.Join(append(f, "format=yuv420p"), ",")
+	return strings.Join(append(f, "format="+sdrPixFmt), ",")
 }
 
-// tonemapChain lleva HDR (PQ o HLG) a SDR BT.709 con la curva Hable, pasando
+// sdrPixFmt es el formato de píxel de la salida: 4:2:0 de 8 bits, el que todo
+// reproductor entiende. En ese mismo formato se comparan los cuadros al medir.
+const sdrPixFmt = "yuv420p"
+
+// tonemapFilters lleva HDR (PQ o HLG) a SDR BT.709 con la curva Hable, pasando
 // por luz lineal en punto flotante (zscale, de la biblioteca zimg).
-var tonemapChain = []string{
-	"zscale=t=linear:npl=100", "format=gbrpf32le", "zscale=p=bt709",
-	"tonemap=tonemap=hable:desat=0", "zscale=t=bt709:m=bt709:r=tv",
-}
+//
+// El format= del final fija la salida del último zscale. Sin él, zscale negocia
+// el formato con el filtro que sigue: si es un scale (al achicar el video, y
+// siempre en la medición), gana su RGB flotante de trabajo, el m=bt709:r=tv no
+// se aplica y la conversión a YUV la hace swscale, con BT.601 hasta ffmpeg 6.1
+// en un archivo marcado BT.709. Fijado, la hace siempre zimg: la codificación y
+// la referencia de la medición reciben exactamente los mismos cuadros SDR.
+const tonemapFilters = "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709," +
+	"tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=" + sdrPixFmt
 
 func inputArgs(p Plan, opt EncodeOptions) []string {
 	var a []string
