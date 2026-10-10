@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/agustinyarrus/vidsquash/internal/ffx"
+	"github.com/agustinyarrus/vidsquash/internal/i18n"
 )
 
 // quality.go mide qué tan parecido quedó el video al original. Se usa VMAF (la
@@ -46,15 +47,15 @@ func (q Quality) Label() string {
 	}
 	switch {
 	case s >= 93:
-		return "indistinguible del original"
+		return i18n.T("indistinguible del original")
 	case s >= 85:
-		return "muy buena"
+		return i18n.T("muy buena")
 	case s >= 75:
-		return "buena"
+		return i18n.T("buena")
 	case s >= 60:
-		return "aceptable"
+		return i18n.T("aceptable")
 	}
-	return "se nota la compresión"
+	return i18n.T("se nota la compresión")
 }
 
 // sampleStarts reparte las ventanas de medición (en tiempo de la SALIDA).
@@ -132,7 +133,7 @@ func measureWindow(ctx context.Context, tools ffx.Tools, p Plan, input string, r
 	}
 	m := ssimScore.FindStringSubmatch(out)
 	if m == nil {
-		return 0, "", fmt.Errorf("ffmpeg no devolvió el puntaje de calidad")
+		return 0, "", i18n.Errorf("ffmpeg no devolvió el puntaje de calidad")
 	}
 	s, _ := strconv.ParseFloat(m[1], 64)
 	return s, metricSSIM, nil

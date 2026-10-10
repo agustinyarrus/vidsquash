@@ -5,38 +5,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/agustinyarrus/vidsquash/internal/i18n"
 )
 
-// Formato es-AR: miles con punto, decimales con coma, espacio antes del "%".
+// Números en el idioma de la salida (internal/i18n): en castellano, miles con punto y decimales
+// con coma (1.234,5); en inglés, al revés (1,234.5). Espacio antes del "%" en los dos.
 
-// Int agrupa miles: 1234567 → "1.234.567".
-func Int(n int64) string {
-	neg := n < 0
-	if neg {
-		n = -n
-	}
-	s := strconv.FormatInt(n, 10)
-	if len(s) > 3 {
-		var b strings.Builder
-		lead := len(s) % 3
-		if lead > 0 {
-			b.WriteString(s[:lead])
-		}
-		for i := lead; i < len(s); i += 3 {
-			if b.Len() > 0 {
-				b.WriteByte('.')
-			}
-			b.WriteString(s[i : i+3])
-		}
-		s = b.String()
-	}
-	if neg {
-		return "-" + s
-	}
-	return s
-}
+// Int agrupa miles: 1234567 → "1.234.567" / "1,234,567".
+func Int(n int64) string { return i18n.Int(n) }
 
-// Fixed escribe f con prec decimales y coma decimal: Fixed(3.14159, 2) → "3,14".
+// Fixed escribe f con prec decimales y la coma o el punto del idioma: Fixed(3.14159, 2) → "3,14".
 func Fixed(f float64, prec int) string {
 	s := strconv.FormatFloat(f, 'f', prec, 64)
 	intPart, frac, hasFrac := strings.Cut(s, ".")
@@ -51,9 +30,16 @@ func Fixed(f float64, prec int) string {
 		grouped = "-" + grouped
 	}
 	if hasFrac {
-		return grouped + "," + frac
+		return grouped + decimalSep() + frac
 	}
 	return grouped
+}
+
+func decimalSep() string {
+	if i18n.Current() == i18n.EN {
+		return "."
+	}
+	return ","
 }
 
 // sig3 elige los decimales para mostrar ~3 cifras significativas.
@@ -137,38 +123,25 @@ func Percent(frac float64, prec int) string {
 	return Fixed(frac*100, prec) + " %"
 }
 
-// Plural elige la forma según n: Plural(1, "archivo", "archivos").
-func Plural(n int64, one, many string) string {
-	if n == 1 || n == -1 {
-		return one
-	}
-	return many
-}
-
-// Count une número y sustantivo: Count(12, "archivo", "archivos") → "12 archivos".
-func Count(n int64, one, many string) string {
-	return Int(n) + " " + Plural(n, one, many)
-}
-
-// Ago describe cuánto hace que pasó algo: "hace 2 h 13 min".
+// Ago describe cuánto hace que pasó algo: "hace 2 h 13 min" / "2 h 13 min ago".
 func Ago(t time.Time, now time.Time) string {
 	if t.IsZero() {
 		return "—"
 	}
 	d := now.Sub(t)
 	if d < time.Second {
-		return "recién"
+		return i18n.T("recién")
 	}
 	if d < time.Minute {
 		// Segundos enteros: "hace 9,00 s" promete centésimas que no hay (la
 		// cuenta se trunca al segundo).
-		return "hace " + strconv.Itoa(int(d/time.Second)) + " s"
+		return i18n.F("hace %s", strconv.Itoa(int(d/time.Second))+" s")
 	}
 	if d >= 48*time.Hour {
 		days := int(d / (24 * time.Hour))
-		return "hace " + strconv.Itoa(days) + " días"
+		return i18n.F("hace %d días", days)
 	}
-	return "hace " + Duration(d.Truncate(time.Second))
+	return i18n.F("hace %s", Duration(d.Truncate(time.Second)))
 }
 
 // AgoShort es Ago con UNA sola unidad, la más grande: "hace 28 h", "hace 41
@@ -181,15 +154,15 @@ func AgoShort(t time.Time, now time.Time) string {
 	d := now.Sub(t)
 	switch {
 	case d < time.Second:
-		return "recién"
+		return i18n.T("recién")
 	case d < time.Minute:
-		return "hace " + strconv.Itoa(int(d/time.Second)) + " s"
+		return i18n.F("hace %s", strconv.Itoa(int(d/time.Second))+" s")
 	case d < time.Hour:
-		return "hace " + strconv.Itoa(int(d/time.Minute)) + " min"
+		return i18n.F("hace %s", strconv.Itoa(int(d/time.Minute))+" min")
 	case d < 48*time.Hour:
-		return "hace " + strconv.Itoa(int(d/time.Hour)) + " h"
+		return i18n.F("hace %s", strconv.Itoa(int(d/time.Hour))+" h")
 	}
-	return "hace " + strconv.Itoa(int(d/(24*time.Hour))) + " días"
+	return i18n.F("hace %d días", int(d/(24*time.Hour)))
 }
 
 // Rate escribe una tasa en bytes por segundo: "84,2 MB/s".

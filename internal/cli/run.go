@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"os/signal"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/agustinyarrus/vidsquash/internal/i18n"
 	"github.com/agustinyarrus/vidsquash/internal/tui"
 )
 
@@ -32,7 +32,7 @@ func (a *App) Start(t *tui.Term, args []string) (pos []string, done bool, code i
 	case err != nil:
 		t.Blank()
 		t.Lines(t.Marked("✗ ", tui.Rose, err.Error()))
-		t.Line(t.Paint(tui.Faint, "› "+a.Name+" --help muestra todas las opciones"))
+		t.Line(t.Paint(tui.Faint, "› "+i18n.F("%s --help muestra todas las opciones", a.Name)))
 		t.Blank()
 		return nil, true, ExitUsage
 	}
@@ -67,7 +67,7 @@ func Interrupt(onHardExit func()) (context.Context, context.CancelFunc) {
 func ParseSize(s string) (int64, error) {
 	raw := strings.TrimSpace(s)
 	if raw == "" {
-		return 0, errors.New("tamaño vacío")
+		return 0, i18n.Errorf("tamaño vacío")
 	}
 	i := 0
 	for i < len(raw) && (raw[i] >= '0' && raw[i] <= '9' || raw[i] == '.' || raw[i] == ',') {
@@ -76,7 +76,7 @@ func ParseSize(s string) (int64, error) {
 	num, unit := raw[:i], strings.ToLower(strings.TrimSpace(raw[i:]))
 	v, err := strconv.ParseFloat(strings.ReplaceAll(num, ",", "."), 64)
 	if err != nil || v < 0 {
-		return 0, fmt.Errorf("%q no es un tamaño (ej.: 25MB, 8M, 1,5GB)", s)
+		return 0, i18n.Errorf("%q no es un tamaño (ej.: 25MB, 8M, 1,5GB)", s)
 	}
 	mult := map[string]float64{
 		"": 1, "b": 1,
@@ -85,7 +85,7 @@ func ParseSize(s string) (int64, error) {
 	}
 	m, ok := mult[unit]
 	if !ok {
-		return 0, fmt.Errorf("unidad %q desconocida (B, KB, MB, GB, KiB, MiB, GiB)", unit)
+		return 0, i18n.Errorf("unidad %q desconocida (B, KB, MB, GB, KiB, MiB, GiB)", unit)
 	}
 	return int64(v*m + 0.5), nil
 }
@@ -94,18 +94,18 @@ func ParseSize(s string) (int64, error) {
 func ParseTimecode(s string) (time.Duration, error) {
 	raw := strings.TrimSpace(strings.ReplaceAll(s, ",", "."))
 	if raw == "" {
-		return 0, errors.New("tiempo vacío")
+		return 0, i18n.Errorf("tiempo vacío")
 	}
 	if strings.Contains(raw, ":") {
 		parts := strings.Split(raw, ":")
 		if len(parts) > 3 {
-			return 0, fmt.Errorf("%q no es un tiempo (ej.: 1:30, 01:02:03.5)", s)
+			return 0, i18n.Errorf("%q no es un tiempo (ej.: 1:30, 01:02:03.5)", s)
 		}
 		var total float64
 		for _, p := range parts {
 			v, err := strconv.ParseFloat(p, 64)
 			if err != nil || v < 0 {
-				return 0, fmt.Errorf("%q no es un tiempo (ej.: 1:30, 01:02:03.5)", s)
+				return 0, i18n.Errorf("%q no es un tiempo (ej.: 1:30, 01:02:03.5)", s)
 			}
 			total = total*60 + v
 		}
@@ -114,13 +114,13 @@ func ParseTimecode(s string) (time.Duration, error) {
 	if unicode.IsDigit(rune(raw[len(raw)-1])) {
 		v, err := strconv.ParseFloat(raw, 64)
 		if err != nil || v < 0 {
-			return 0, fmt.Errorf("%q no es un tiempo", s)
+			return 0, i18n.Errorf("%q no es un tiempo", s)
 		}
 		return time.Duration(v * float64(time.Second)), nil
 	}
 	d, err := time.ParseDuration(raw)
 	if err != nil || d < 0 {
-		return 0, fmt.Errorf("%q no es un tiempo (ej.: 90, 1:30, 1m30s)", s)
+		return 0, i18n.Errorf("%q no es un tiempo (ej.: 90, 1:30, 1m30s)", s)
 	}
 	return d, nil
 }

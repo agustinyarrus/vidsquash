@@ -3,6 +3,8 @@ package tui
 import (
 	"testing"
 	"time"
+
+	"github.com/agustinyarrus/vidsquash/internal/i18n"
 )
 
 func TestInt(t *testing.T) {
@@ -99,10 +101,22 @@ func TestClockPercentCount(t *testing.T) {
 	if got := Percent(0.7512, 0); got != "75 %" {
 		t.Errorf("Percent = %q", got)
 	}
-	if got := Count(1, "archivo", "archivos"); got != "1 archivo" {
-		t.Errorf("Count(1) = %q", got)
+}
+
+// Los números siguen el idioma de la salida: en inglés, coma de miles y punto decimal.
+func TestNumerosEnIngles(t *testing.T) {
+	i18n.Set(i18n.EN)
+	defer i18n.Set(i18n.ES)
+	casos := []struct{ got, want string }{
+		{Int(1234567), "1,234,567"},
+		{Fixed(3.14159, 2), "3.14"},
+		{Fixed(-1234.5, 1), "-1,234.5"},
+		{Bytes(25_000_000), "25.0 MB"},
+		{Percent(0.7512, 0), "75 %"},
 	}
-	if got := Count(1200, "archivo", "archivos"); got != "1.200 archivos" {
-		t.Errorf("Count(1200) = %q", got)
+	for _, c := range casos {
+		if c.got != c.want {
+			t.Errorf("%q, esperaba %q", c.got, c.want)
+		}
 	}
 }

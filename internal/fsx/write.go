@@ -3,12 +3,13 @@ package fsx
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/agustinyarrus/vidsquash/internal/i18n"
 )
 
 const writeBuffer = 1 << 20 // 1 MiB: pocas llamadas al sistema aun en archivos grandes
@@ -32,7 +33,7 @@ func WriteAtomic(path string, write func(w io.Writer) error) (err error) {
 	dir := filepath.Dir(path)
 	f, err := os.CreateTemp(dir, "."+filepath.Base(path)+".*.tmp")
 	if err != nil {
-		return fmt.Errorf("no puedo crear el temporal en %s: %w", dir, err)
+		return i18n.Errorf("no puedo crear el temporal en %s: %w", dir, err)
 	}
 	tmp := f.Name()
 	defer func() {
@@ -67,7 +68,7 @@ func renameWithRetry(from, to string) error {
 		delay *= 2
 	}
 	os.Remove(from)
-	return fmt.Errorf("no puedo reemplazar %s (¿está abierto en otro programa?): %w", filepath.Base(to), err)
+	return i18n.Errorf("no puedo reemplazar %s (¿está abierto en otro programa?): %w", filepath.Base(to), err)
 }
 
 // SameFile dice si a y b son el mismo archivo en disco (mismo ID de volumen e
@@ -94,7 +95,7 @@ func Exists(path string) bool {
 // actual, absoluta si no.
 func Display(path string) string {
 	if path == "-" {
-		return "(entrada estándar)"
+		return i18n.T("(entrada estándar)")
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {

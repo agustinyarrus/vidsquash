@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/agustinyarrus/vidsquash/internal/i18n"
 	"github.com/agustinyarrus/vidsquash/internal/textdist"
 	"github.com/agustinyarrus/vidsquash/internal/tui"
 )
@@ -84,7 +85,7 @@ func (a *App) add(f *flag) {
 		return
 	}
 	if len(a.sections) == 0 {
-		a.Section("opciones")
+		a.Section(i18n.T("opciones"))
 	}
 	s := a.sections[len(a.sections)-1]
 	s.flags = append(s.flags, f)
@@ -122,10 +123,10 @@ func (a *App) Int(p *int, long string, short rune, arg, help string, lo, hi int)
 	a.add(&flag{long: long, short: short, arg: arg, help: help, def: strconv.Itoa(*p), set: func(v string) error {
 		n, err := strconv.Atoi(strings.TrimSpace(v))
 		if err != nil {
-			return fmt.Errorf("%q no es un número entero", v)
+			return i18n.Errorf("%q no es un número entero", v)
 		}
 		if n < lo || n > hi {
-			return fmt.Errorf("tiene que estar entre %d y %d (vino %d)", lo, hi, n)
+			return i18n.Errorf("tiene que estar entre %d y %d (vino %d)", lo, hi, n)
 		}
 		*p = n
 		return nil
@@ -137,10 +138,10 @@ func (a *App) Float(p *float64, long string, short rune, arg, help string, lo, h
 	a.add(&flag{long: long, short: short, arg: arg, help: help, def: tui.Fixed(*p, -1), set: func(v string) error {
 		f, err := strconv.ParseFloat(strings.ReplaceAll(strings.TrimSpace(v), ",", "."), 64)
 		if err != nil {
-			return fmt.Errorf("%q no es un número", v)
+			return i18n.Errorf("%q no es un número", v)
 		}
 		if f < lo || f > hi {
-			return fmt.Errorf("tiene que estar entre %s y %s", tui.Fixed(lo, -1), tui.Fixed(hi, -1))
+			return i18n.Errorf("tiene que estar entre %s y %s", tui.Fixed(lo, -1), tui.Fixed(hi, -1))
 		}
 		*p = f
 		return nil
@@ -158,9 +159,9 @@ func (a *App) Enum(p *string, long string, short rune, help string, choices ...s
 			}
 		}
 		if s := textdist.Closest(v, choices); s != "" {
-			return fmt.Errorf("%q no es una opción; ¿quisiste decir %q? (%s)", v, s, strings.Join(choices, ", "))
+			return i18n.Errorf("%q no es una opción; ¿quisiste decir %q? (%s)", v, s, strings.Join(choices, ", "))
 		}
-		return fmt.Errorf("%q no es una opción (%s)", v, strings.Join(choices, ", "))
+		return i18n.Errorf("%q no es una opción (%s)", v, strings.Join(choices, ", "))
 	}})
 }
 
@@ -181,7 +182,7 @@ func parseBool(v string) (bool, error) {
 	case "0", "false", "f", "no", "n", "off":
 		return false, nil
 	}
-	return false, fmt.Errorf("%q no es sí/no", v)
+	return false, i18n.Errorf("%q no es sí/no", v)
 }
 
 func isNumber(s string) bool {
@@ -208,6 +209,18 @@ func (a *App) Parse(args []string) ([]string, error) {
 			case "no-color":
 				a.NoColor = true
 				continue
+			case "lang":
+				if !hasVal {
+					if i+1 >= len(args) {
+						return nil, i18n.Errorf("--%s necesita un valor (%s)", name, "es|en")
+					}
+					i++
+					val = args[i]
+				}
+				if _, ok := i18n.Parse(val); !ok && !strings.EqualFold(strings.TrimSpace(val), "auto") {
+					return nil, i18n.Errorf("--lang: %q no es un idioma (es, en)", val)
+				}
+				continue
 			}
 			f := a.long[name]
 			if f == nil && strings.HasPrefix(name, "no-") && !hasVal {
@@ -232,7 +245,7 @@ func (a *App) Parse(args []string) ([]string, error) {
 			}
 			if !hasVal {
 				if i+1 >= len(args) {
-					return nil, fmt.Errorf("--%s necesita un valor (%s)", name, f.arg)
+					return nil, i18n.Errorf("--%s necesita un valor (%s)", name, f.arg)
 				}
 				i++
 				val = args[i]
@@ -285,7 +298,7 @@ func (a *App) shortCluster(cluster string, args []string, i int) (consumedNext b
 		val := strings.TrimPrefix(string(runes[j+1:]), "=")
 		if val == "" {
 			if i+1 >= len(args) {
-				return false, fmt.Errorf("-%c necesita un valor (%s)", r, f.arg)
+				return false, i18n.Errorf("-%c necesita un valor (%s)", r, f.arg)
 			}
 			val, consumedNext = args[i+1], true
 		}
@@ -304,11 +317,36 @@ func (a *App) unknown(flagText string) error {
 			names = append(names, "--"+n)
 		}
 	}
-	names = append(names, "--help", "--version", "--no-color")
+	names = append(names, "--help", "--version", "--no-color", "--lang")
 	sort.Strings(names)
 	if s := textdist.Closest(flagText, names); s != "" {
-		return fmt.Errorf("no conozco %s; ¿quisiste decir %s?", flagText, s)
+		return i18n.Errorf("no conozco %s; ¿quisiste decir %s?", flagText, s)
 	}
 	// La pista de --help la agrega Start debajo del error: no dos veces.
-	return fmt.Errorf("no conozco %s", flagText)
+	return i18n.Errorf("no conozco %s", flagText)
+}
+
+// LangEnv es la variable de idioma de cada herramienta: CLIP2QR_LANG, PDF_MERGE_LANG, KILLPORT_LANG…
+func LangEnv(name string) string {
+	return strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + "_LANG"
+}
+
+// ResolveLang decide el idioma ANTES de armar la App: la ayuda, los errores y la salida se escriben
+// recién después, ya en el idioma elegido. Sólo mira --lang (Parse lo vuelve a leer, lo valida y lo
+// consume), la variable de la herramienta y, si nadie dijo nada, Windows (ver internal/i18n).
+func ResolveLang(name string, args []string) (i18n.Lang, i18n.Source) {
+	flag := ""
+	for i := 0; i < len(args); i++ {
+		s := args[i]
+		if s == "--" {
+			break
+		}
+		if v, ok := strings.CutPrefix(s, "--lang="); ok {
+			flag = v
+		} else if s == "--lang" && i+1 < len(args) {
+			flag = args[i+1]
+			i++
+		}
+	}
+	return i18n.Resolve(i18n.Choice{Flag: flag, AppEnv: LangEnv(name)})
 }

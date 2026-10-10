@@ -6,8 +6,6 @@ package ffx
 import (
 	"bufio"
 	"context"
-	"errors"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -16,10 +14,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/agustinyarrus/vidsquash/internal/i18n"
 )
 
 // ErrNotFound se devuelve cuando no hay ffmpeg/ffprobe en el sistema.
-var ErrNotFound = errors.New("no encontré ffmpeg (instalalo con: winget install Gyan.FFmpeg)")
+var ErrNotFound = i18n.Error("no encontré ffmpeg (instalalo con: winget install Gyan.FFmpeg)")
 
 // Tools son las rutas de los ejecutables.
 type Tools struct {
@@ -88,7 +88,7 @@ func (t Tools) Run(ctx context.Context, args []string, onProgress func(Progress)
 	var tail tailBuffer
 	cmd.Stderr = &tail
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("no pude arrancar ffmpeg: %w", err)
+		return i18n.Errorf("no pude arrancar ffmpeg: %w", err)
 	}
 	parseProgress(stdout, onProgress)
 	err = cmd.Wait()
@@ -100,7 +100,7 @@ func (t Tools) Run(ctx context.Context, args []string, onProgress func(Progress)
 		if msg == "" {
 			msg = err.Error()
 		}
-		return fmt.Errorf("ffmpeg falló: %s", lastLines(msg, 4))
+		return i18n.Errorf("ffmpeg falló: %s", lastLines(msg, 4))
 	}
 	return nil
 }
@@ -116,7 +116,7 @@ func (t Tools) Output(ctx context.Context, args []string) (string, error) {
 		return "", ctx.Err()
 	}
 	if err != nil {
-		return string(out), fmt.Errorf("ffmpeg falló: %s", lastLines(strings.TrimSpace(string(out)), 4))
+		return string(out), i18n.Errorf("ffmpeg falló: %s", lastLines(strings.TrimSpace(string(out)), 4))
 	}
 	return string(out), nil
 }

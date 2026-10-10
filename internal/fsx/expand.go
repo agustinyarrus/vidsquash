@@ -4,7 +4,6 @@ package fsx
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/agustinyarrus/vidsquash/internal/i18n"
 	"github.com/agustinyarrus/vidsquash/internal/textdist"
 )
 
@@ -59,7 +59,7 @@ func Expand(patterns []string, opt ExpandOptions) ([]string, []Problem) {
 			continue
 		}
 		if len(found) == 0 {
-			problems = append(problems, Problem{pat, errors.New("no coincide con ningún archivo")})
+			problems = append(problems, Problem{pat, i18n.Errorf("no coincide con ningún archivo")})
 			continue
 		}
 		for _, f := range found {
@@ -149,7 +149,7 @@ func glob(pattern string) ([]string, error) {
 	}
 	for _, s := range segs {
 		if _, err := filepath.Match(foldCase(s), "x"); err != nil && s != "**" {
-			return nil, fmt.Errorf("patrón inválido %q", s)
+			return nil, i18n.Errorf("patrón inválido %q", s)
 		}
 	}
 	i := 0
@@ -251,16 +251,16 @@ func describeMissing(pat string, err error) error {
 	}
 	entries, rerr := os.ReadDir(dir)
 	if rerr != nil {
-		return errors.New("no existe")
+		return i18n.Errorf("no existe")
 	}
 	names := make([]string, 0, len(entries))
 	for _, e := range entries {
 		names = append(names, e.Name())
 	}
 	if s := textdist.Closest(name, names); s != "" {
-		return fmt.Errorf("no existe; ¿quisiste decir %s?", s)
+		return i18n.Errorf("no existe; ¿quisiste decir %s?", s)
 	}
-	return errors.New("no existe")
+	return i18n.Errorf("no existe")
 }
 
 // SortNatural ordena como un humano: sin distinguir mayúsculas y comparando

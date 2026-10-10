@@ -3,6 +3,7 @@ package cli
 import (
 	"strings"
 
+	"github.com/agustinyarrus/vidsquash/internal/i18n"
 	"github.com/agustinyarrus/vidsquash/internal/tui"
 )
 
@@ -14,16 +15,17 @@ func (a *App) Help(t *tui.Term) []string {
 	title := func(s string) { out = append(out, tui.Margin+t.Paint(tui.Subtle, s)) }
 	width := t.Width() - len(tui.Margin)*2
 
-	title("uso")
+	title(i18n.T("uso"))
 	for _, u := range a.Usage {
 		out = append(out, tui.Margin+"  "+t.Paint(tui.Text, u))
 	}
 
 	all := append([]*section(nil), a.sections...)
-	all = append(all, &section{title: "general", flags: []*flag{
-		{long: "help", short: 'h', help: "muestra esta ayuda", isBool: true},
-		{long: "version", short: 'V', help: "muestra la versión", isBool: true},
-		{long: "no-color", help: "salida sin colores (también respeta NO_COLOR)", isBool: true},
+	all = append(all, &section{title: i18n.T("general"), flags: []*flag{
+		{long: "help", short: 'h', help: i18n.T("muestra esta ayuda"), isBool: true},
+		{long: "version", short: 'V', help: i18n.T("muestra la versión"), isBool: true},
+		{long: "no-color", help: i18n.T("salida sin colores (también respeta NO_COLOR)"), isBool: true},
+		{long: "lang", arg: "es|en", help: i18n.F("idioma de la salida (también %s; si no, el de Windows)", LangEnv(a.Name))},
 	}})
 
 	// Una sola columna de flags para toda la ayuda: todas las descripciones
@@ -67,7 +69,7 @@ func (a *App) Help(t *tui.Term) []string {
 
 	if len(a.Examples) > 0 {
 		out = append(out, "")
-		title("ejemplos")
+		title(i18n.T("ejemplos"))
 		cmdW := 0
 		for _, e := range a.Examples {
 			cmdW = max(cmdW, tui.Width(e.Cmd))
@@ -95,7 +97,7 @@ func (a *App) Help(t *tui.Term) []string {
 
 	if len(a.Notes) > 0 {
 		out = append(out, "")
-		title("notas")
+		title(i18n.T("notas"))
 		for _, n := range a.Notes {
 			for i, l := range tui.Wrap(n, width-4) {
 				lead := "· "

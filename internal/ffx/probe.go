@@ -3,12 +3,13 @@ package ffx
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"math"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/agustinyarrus/vidsquash/internal/i18n"
 )
 
 // Media es lo que importa de un archivo de video para planificar la compresión.
@@ -86,13 +87,13 @@ func (t Tools) Probe(ctx context.Context, path string) (*Media, error) {
 	out, err := cmd.Output()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
-			return nil, fmt.Errorf("ffprobe no pudo leer el archivo: %s", lastLines(strings.TrimSpace(string(ee.Stderr)), 2))
+			return nil, i18n.Errorf("ffprobe no pudo leer el archivo: %s", lastLines(strings.TrimSpace(string(ee.Stderr)), 2))
 		}
-		return nil, fmt.Errorf("ffprobe no pudo leer el archivo: %w", err)
+		return nil, i18n.Errorf("ffprobe no pudo leer el archivo: %w", err)
 	}
 	var pj probeJSON
 	if err := json.Unmarshal(out, &pj); err != nil {
-		return nil, fmt.Errorf("respuesta de ffprobe ilegible: %w", err)
+		return nil, i18n.Errorf("respuesta de ffprobe ilegible: %w", err)
 	}
 	m := &Media{Path: path}
 	m.Duration = seconds(pj.Format.Duration)
@@ -131,7 +132,7 @@ func (t Tools) Probe(ctx context.Context, path string) (*Media, error) {
 		}
 	}
 	if m.Duration <= 0 {
-		return nil, fmt.Errorf("no pude saber cuánto dura el archivo")
+		return nil, i18n.Errorf("no pude saber cuánto dura el archivo")
 	}
 	return m, nil
 }

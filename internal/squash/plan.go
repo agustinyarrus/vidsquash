@@ -5,12 +5,12 @@
 package squash
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"time"
 
 	"github.com/agustinyarrus/vidsquash/internal/ffx"
+	"github.com/agustinyarrus/vidsquash/internal/i18n"
 )
 
 // Codec es el códec de video de salida.
@@ -75,13 +75,13 @@ type Plan struct {
 }
 
 // ErrTooSmall se devuelve cuando el objetivo no alcanza ni para un video mínimo.
-var ErrTooSmall = errors.New("el tamaño pedido no alcanza para ese video")
+var ErrTooSmall = i18n.Error("el tamaño pedido no alcanza para ese video")
 
 // MakePlan arma la receta. Es una función pura (sin E/S): recibe lo que dijo
 // ffprobe y las opciones, y devuelve la receta o por qué no se puede.
 func MakePlan(m *ffx.Media, opt Options) (Plan, error) {
 	if m.Video == nil {
-		return Plan{}, errors.New("el archivo no tiene pista de video")
+		return Plan{}, i18n.Errorf("el archivo no tiene pista de video")
 	}
 	if opt.Codec == "" {
 		opt.Codec = H264
@@ -91,7 +91,7 @@ func MakePlan(m *ffx.Media, opt Options) (Plan, error) {
 	}
 	dur := effectiveDuration(m.Duration, opt.From, opt.To)
 	if dur <= 0 {
-		return Plan{}, errors.New("el recorte deja el video vacío")
+		return Plan{}, i18n.Errorf("el recorte deja el video vacío")
 	}
 	secs := dur.Seconds()
 	p := Plan{Duration: dur, SourceFPS: m.Video.FPS, Target: opt.Target, Codec: opt.Codec, Tonemap: m.Video.HDR()}
@@ -120,7 +120,7 @@ func MakePlan(m *ffx.Media, opt Options) (Plan, error) {
 	p.BPP = float64(p.VideoKbps*1000) / (float64(p.Width*p.Height) * p.FPS)
 	p.Reasons = append(p.Reasons, why...)
 	if p.Tonemap {
-		p.Reasons = append(p.Reasons, "HDR → SDR (tone mapping), para que no se vea lavado en pantallas comunes")
+		p.Reasons = append(p.Reasons, i18n.T("HDR → SDR (tone mapping), para que no se vea lavado en pantallas comunes"))
 	}
 	return p, nil
 }
@@ -215,7 +215,7 @@ func chooseTier(v *ffx.VideoStream, videoBps float64, opt Options) (Tier, []Tier
 	}
 	last := tiers[len(tiers)-1]
 	why := explain(v, last)
-	why = append(why, fmt.Sprintf("aun así quedan pocos bits (%.3f bits/píxel): la imagen va a verse gruesa; conviene recortar el video o pedir más tamaño", last.BPP))
+	why = append(why, i18n.F("aun así quedan pocos bits (%.3f bits/píxel): la imagen va a verse gruesa; conviene recortar el video o pedir más tamaño", last.BPP))
 	return last, tiers, why
 }
 
@@ -255,10 +255,10 @@ func even(n int) int {
 func explain(v *ffx.VideoStream, t Tier) []string {
 	var why []string
 	if t.Width != v.Width || t.Height != v.Height {
-		why = append(why, fmt.Sprintf("resolución %d×%d → %d×%d para que cada píxel tenga bits suficientes", v.Width, v.Height, t.Width, t.Height))
+		why = append(why, i18n.F("resolución %d×%d → %d×%d para que cada píxel tenga bits suficientes", v.Width, v.Height, t.Width, t.Height))
 	}
 	if math.Abs(t.FPS-v.FPS) > 0.01 {
-		why = append(why, fmt.Sprintf("%s → %s cuadros por segundo: la mitad de cuadros, el doble de bits por cuadro", fmtFPS(v.FPS), fmtFPS(t.FPS)))
+		why = append(why, i18n.F("%s → %s cuadros por segundo: la mitad de cuadros, el doble de bits por cuadro", fmtFPS(v.FPS), fmtFPS(t.FPS)))
 	}
 	return why
 }
@@ -276,7 +276,7 @@ func tooSmall(m *ffx.Media, opt Options, dur time.Duration) error {
 	secs := dur.Seconds()
 	minBytes := int64(float64(minVideoKbps+32)*1000/8*secs) + estimateOverhead(secs, 15, m.Audio != nil)
 	maxSecs := float64(opt.Target) * 8 / float64((minVideoKbps+32)*1000)
-	return fmt.Errorf("%w: para %s harían falta al menos %s, o recortarlo a unos %s con --to",
+	return i18n.Errorf("%w: para %s harían falta al menos %s, o recortarlo a unos %s con --to",
 		ErrTooSmall, clock(dur), humanBytes(minBytes), clock(time.Duration(maxSecs*float64(time.Second))))
 }
 

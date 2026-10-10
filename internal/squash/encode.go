@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/agustinyarrus/vidsquash/internal/ffx"
+	"github.com/agustinyarrus/vidsquash/internal/i18n"
 )
 
 // encode.go ejecuta la receta: primera pasada (el codificador estudia el video
@@ -89,7 +90,7 @@ func Encode(ctx context.Context, tools ffx.Tools, p Plan, opt EncodeOptions, onP
 		}
 	}
 
-	if err := tools.Run(ctx, pass1Args(p, opt, passlog), report("Primera pasada: estudiando el video")); err != nil {
+	if err := tools.Run(ctx, pass1Args(p, opt, passlog), report(i18n.T("Primera pasada: estudiando el video"))); err != nil {
 		return Result{}, err
 	}
 
@@ -98,9 +99,9 @@ func Encode(ctx context.Context, tools ffx.Tools, p Plan, opt EncodeOptions, onP
 	best := ""
 	vk := p.VideoKbps
 	for attempt := 0; attempt <= maxCorrections; attempt++ {
-		name := "Segunda pasada: codificando"
+		name := i18n.T("Segunda pasada: codificando")
 		if attempt > 0 {
-			name = fmt.Sprintf("Ajuste fino %d: %s de video", attempt, kbps(vk))
+			name = i18n.F("Ajuste fino %d: %s de video", attempt, kbps(vk))
 		}
 		out := filepath.Join(work, fmt.Sprintf("intento-%d.mp4", attempt))
 		if err := tools.Run(ctx, pass2Args(p, opt, passlog, vk, out), report(name)); err != nil {
@@ -121,7 +122,7 @@ func Encode(ctx context.Context, tools ffx.Tools, p Plan, opt EncodeOptions, onP
 		vk = next
 	}
 	if best == "" {
-		return res, fmt.Errorf("después de %d intentos el video sigue pasándose del objetivo (%s)", len(res.Attempts), humanBytes(res.Attempts[len(res.Attempts)-1].Size))
+		return res, i18n.Errorf("después de %d intentos el video sigue pasándose del objetivo (%s)", len(res.Attempts), humanBytes(res.Attempts[len(res.Attempts)-1].Size))
 	}
 	if err := replace(best, opt.Output); err != nil {
 		return res, err
