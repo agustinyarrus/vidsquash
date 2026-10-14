@@ -25,7 +25,7 @@ func (a *App) Help(t *tui.Term) []string {
 		{long: "help", short: 'h', help: i18n.T("muestra esta ayuda"), isBool: true},
 		{long: "version", short: 'V', help: i18n.T("muestra la versión"), isBool: true},
 		{long: "no-color", help: i18n.T("salida sin colores (también respeta NO_COLOR)"), isBool: true},
-		{long: "lang", arg: "es|en", help: i18n.F("idioma de la salida (también %s; si no, el de Windows)", LangEnv(a.Name))},
+		{long: "lang", arg: "en|es", help: i18n.F("idioma de la salida (también %s; si no, inglés)", LangEnv(a.Name))},
 	}})
 
 	// Una sola columna de flags para toda la ayuda: todas las descripciones

@@ -212,13 +212,13 @@ func (a *App) Parse(args []string) ([]string, error) {
 			case "lang":
 				if !hasVal {
 					if i+1 >= len(args) {
-						return nil, i18n.Errorf("--%s necesita un valor (%s)", name, "es|en")
+						return nil, i18n.Errorf("--%s necesita un valor (%s)", name, "en|es")
 					}
 					i++
 					val = args[i]
 				}
 				if _, ok := i18n.Parse(val); !ok && !strings.EqualFold(strings.TrimSpace(val), "auto") {
-					return nil, i18n.Errorf("--lang: %q no es un idioma (es, en)", val)
+					return nil, i18n.Errorf("--lang: %q no es un idioma (en, es)", val)
 				}
 				continue
 			}
@@ -333,7 +333,7 @@ func LangEnv(name string) string {
 
 // ResolveLang decide el idioma ANTES de armar la App: la ayuda, los errores y la salida se escriben
 // recién después, ya en el idioma elegido. Sólo mira --lang (Parse lo vuelve a leer, lo valida y lo
-// consume), la variable de la herramienta y, si nadie dijo nada, Windows (ver internal/i18n).
+// consume), la variable de la herramienta y, si nadie dijo nada, inglés (ver internal/i18n).
 func ResolveLang(name string, args []string) (i18n.Lang, i18n.Source) {
 	flag := ""
 	for i := 0; i < len(args); i++ {
