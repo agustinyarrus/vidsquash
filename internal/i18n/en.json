@@ -18,7 +18,7 @@
   "muestra esta ayuda": "show this help",
   "muestra la versión": "show the version",
   "salida sin colores (también respeta NO_COLOR)": "output without colors (NO_COLOR works too)",
-  "idioma de la salida (también %s; si no, inglés)": "output language (also %s; otherwise English)",
+  "idioma de la salida (también %s; si no, el de Windows)": "output language (also %s; otherwise Windows decides)",
   "ejemplos": "examples",
   "%q no es un tiempo (ej.: 1:30, 01:02:03.5)": "%q is not a time (e.g. 1:30, 01:02:03.5)",
   "%q no es un tiempo": "%q is not a time",
