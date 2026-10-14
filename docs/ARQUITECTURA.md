@@ -1,3 +1,5 @@
+<p align="right"><sub><a href="ARQUITECTURA.en.md">English</a> · <b>Español</b></sub></p>
+
 # Arquitectura
 
 > vidsquash está en construcción (0.1.0): esto describe cómo está escrito, no algo que ya se haya comprobado con videos reales. Ver [PENDIENTE.md](PENDIENTE.md).

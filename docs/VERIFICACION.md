@@ -1,3 +1,5 @@
+<p align="right"><sub><a href="VERIFICACION.en.md">English</a> · <b>Español</b></sub></p>
+
 # Verificación
 
 vidsquash está en construcción (0.1.0). Esta página dice qué está comprobado y qué no, sin redondear.
